@@ -1,0 +1,233 @@
+{
+  "id": "scenario-online-banking",
+  "title": "Online Banking System",
+  "description": "A simplified online banking architecture. This is a functional prototype scenario for demonstrating STRIDE-based threat identification, not a production system. Investigate each component and data flow to identify security threats and classify them using the STRIDE model.",
+  "difficulty": "beginner",
+
+  "architecture": {
+    "components": [
+      {
+        "id": "comp-user",
+        "name": "User / Browser",
+        "type": "actor",
+        "description": "The customer accessing their bank account through a web browser on their own device.",
+        "position": { "x": 40, "y": 200 }
+      },
+      {
+        "id": "comp-webclient",
+        "name": "Web Client",
+        "type": "client",
+        "description": "The React single-page application running in the user's browser. Handles the login form, account dashboard, and transfer forms.",
+        "position": { "x": 260, "y": 200 }
+      },
+      {
+        "id": "comp-apiserver",
+        "name": "API Server",
+        "type": "server",
+        "description": "Backend service that authenticates users, processes transactions, and enforces business rules before touching the database.",
+        "position": { "x": 500, "y": 200 }
+      },
+      {
+        "id": "comp-database",
+        "name": "Database",
+        "type": "database",
+        "description": "Stores user accounts, credentials, balances, and transaction history.",
+        "position": { "x": 740, "y": 200 }
+      }
+    ],
+
+    "flows": [
+      {
+        "id": "flow-1-login",
+        "order": 1,
+        "from": "comp-user",
+        "to": "comp-webclient",
+        "label": "Login Request",
+        "description": "The user submits their username and password through the login form in the browser."
+      },
+      {
+        "id": "flow-2-apicall",
+        "order": 2,
+        "from": "comp-webclient",
+        "to": "comp-apiserver",
+        "label": "Authenticated API Call",
+        "description": "The Web Client sends the user's session token and requested action (e.g. view balance, transfer funds) to the API Server, over the network."
+      },
+      {
+        "id": "flow-3-dbread",
+        "order": 3,
+        "from": "comp-apiserver",
+        "to": "comp-database",
+        "label": "Account Data Query & Response",
+        "description": "The API Server queries the database to read account balance and account holder information, then returns the result to the client."
+      },
+      {
+        "id": "flow-4-dbwrite",
+        "order": 4,
+        "from": "comp-apiserver",
+        "to": "comp-database",
+        "label": "Transaction Write",
+        "description": "The API Server writes a new transaction record when the user transfers funds to another account."
+      }
+    ]
+  },
+
+  "threats": [
+    {
+      "id": "threat-spoofing",
+      "targetElementId": "flow-1-login",
+      "targetElementType": "flow",
+      "points": 40,
+      "prompt": "What could go wrong at the login step?",
+      "candidates": [
+        {
+          "id": "cand-1a",
+          "text": "An attacker uses stolen or guessed credentials to log in as a legitimate user.",
+          "isCorrect": true
+        },
+        {
+          "id": "cand-1b",
+          "text": "The Web Client displays the account balance in the wrong currency.",
+          "isCorrect": false
+        },
+        {
+          "id": "cand-1c",
+          "text": "The database runs out of storage space for new accounts.",
+          "isCorrect": false
+        }
+      ],
+      "correctStrideCategory": "Spoofing",
+      "explanation": "This is Spoofing: an attacker impersonates a legitimate user's identity by authenticating with credentials that aren't theirs. Because this step is where identity is first established, weak authentication here lets an attacker pose as any user of the system."
+    },
+    {
+      "id": "threat-tampering",
+      "targetElementId": "flow-2-apicall",
+      "targetElementType": "flow",
+      "points": 40,
+      "prompt": "What could go wrong as a transfer request travels from the Web Client to the API Server?",
+      "candidates": [
+        {
+          "id": "cand-2a",
+          "text": "The API Server takes slightly longer to respond during peak hours.",
+          "isCorrect": false
+        },
+        {
+          "id": "cand-2b",
+          "text": "An attacker intercepts the transfer request in transit over the network and changes the destination account number before it reaches the API Server.",
+          "isCorrect": true
+        },
+        {
+          "id": "cand-2c",
+          "text": "The user forgets their account password.",
+          "isCorrect": false
+        }
+      ],
+      "correctStrideCategory": "Tampering",
+      "explanation": "This is Tampering: data is maliciously modified in transit. This flow crosses the network between the browser and the server, making it a realistic point for a man-in-the-middle attacker to alter the destination account number, redirecting funds without the user's knowledge."
+    },
+    {
+      "id": "threat-info-disclosure",
+      "targetElementId": "flow-3-dbread",
+      "targetElementType": "flow",
+      "points": 40,
+      "prompt": "What could go wrong when account data is queried and returned to the client?",
+      "candidates": [
+        {
+          "id": "cand-4a",
+          "text": "The dashboard page takes a few extra seconds to load.",
+          "isCorrect": false
+        },
+        {
+          "id": "cand-4b",
+          "text": "The API Server includes more account data in its response than the client actually needs, such as full account numbers, exposing sensitive information if the response is intercepted.",
+          "isCorrect": true
+        },
+        {
+          "id": "cand-4c",
+          "text": "The user's browser tab crashes unexpectedly.",
+          "isCorrect": false
+        }
+      ],
+      "correctStrideCategory": "Information Disclosure",
+      "explanation": "This is Information Disclosure: sensitive data is exposed to someone not authorized to see it. Because this flow includes the response leg back to the client, returning unnecessary sensitive fields increases the impact if that response is intercepted or logged insecurely."
+    },
+    {
+      "id": "threat-elevation",
+      "targetElementId": "flow-4-dbwrite",
+      "targetElementType": "flow",
+      "points": 40,
+      "prompt": "What could go wrong when the API Server writes a transaction to the database?",
+      "candidates": [
+        {
+          "id": "cand-6a",
+          "text": "A regular user manipulates the source account ID in the transfer request, and the API Server writes the transaction without verifying that account belongs to the authenticated user, letting them move funds from an account that isn't theirs.",
+          "isCorrect": true
+        },
+        {
+          "id": "cand-6b",
+          "text": "The Web Client's color scheme is hard to read for some users.",
+          "isCorrect": false
+        },
+        {
+          "id": "cand-6c",
+          "text": "The database schema needs to be updated to support a new feature.",
+          "isCorrect": false
+        }
+      ],
+      "correctStrideCategory": "Elevation of Privilege",
+      "explanation": "This is Elevation of Privilege: a user gains capabilities beyond what they're authorized for. If the API Server trusts a client-supplied account identifier during the write instead of verifying ownership against the authenticated session, a normal user could act on an account that isn't theirs."
+    },
+    {
+      "id": "threat-dos",
+      "targetElementId": "comp-apiserver",
+      "targetElementType": "component",
+      "points": 40,
+      "prompt": "What could go wrong if the login endpoint receives an unusual volume of requests?",
+      "candidates": [
+        {
+          "id": "cand-5a",
+          "text": "An attacker floods the login endpoint with requests, making the banking service unavailable to legitimate users.",
+          "isCorrect": true
+        },
+        {
+          "id": "cand-5b",
+          "text": "The database schema needs to be updated to support a new feature.",
+          "isCorrect": false
+        },
+        {
+          "id": "cand-5c",
+          "text": "A user enters their password incorrectly three times.",
+          "isCorrect": false
+        }
+      ],
+      "correctStrideCategory": "Denial of Service",
+      "explanation": "This is Denial of Service: the system is deliberately overwhelmed so that legitimate users cannot access it. Without rate limiting, the login endpoint is a natural target because authentication logic is often computationally heavier than simple requests."
+    },
+    {
+      "id": "threat-repudiation",
+      "targetElementId": "comp-database",
+      "targetElementType": "component",
+      "points": 40,
+      "prompt": "What could go wrong with how completed transactions are recorded in the database?",
+      "candidates": [
+        {
+          "id": "cand-3a",
+          "text": "Without a sufficient audit trail in the stored transaction records, a user could plausibly deny having authorized a transaction they actually made.",
+          "isCorrect": true
+        },
+        {
+          "id": "cand-3b",
+          "text": "The database uses too much disk space to store transaction history.",
+          "isCorrect": false
+        },
+        {
+          "id": "cand-3c",
+          "text": "The Web Client's login form is difficult to use on mobile devices.",
+          "isCorrect": false
+        }
+      ],
+      "correctStrideCategory": "Repudiation",
+      "explanation": "This is Repudiation: the system cannot prove that a specific action was performed by a specific user. Without transaction records that reliably tie each action to an authenticated identity and timestamp, a user could deny making a transfer, and the bank would have no way to prove otherwise."
+    }
+  ]
+}
